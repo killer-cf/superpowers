@@ -192,18 +192,6 @@ git commit -m "refactor: share harness bootstrap controller"
 
 - [ ] **Step 1: Add failing Pi refactor tests**
 
-In `tests/pi/test-pi-extension.mjs`, add a source-boundary test:
-
-```js
-test("pi adapter depends on shared core, never the OMP adapter", async () => {
-  const source = await readFile(extensionPath, "utf8");
-  assert.match(
-    source,
-    /import \{ createBootstrapController \} from "\.\.\/\.\.\/integrations\/shared\/bootstrap\.ts"/,
-  );
-  assert.doesNotMatch(source, /from\s+["'][^"']*\.omp\//);
-});
-```
 
 Extend the lifecycle test to assert both string and multipart bootstrap markers suppress injection. Extend the compaction test to include two leading summaries and assert the bootstrap becomes message index 2. Preserve the existing assertions for `resources_discover`, the Pi tool mapping, `agent_end`, and the Pi manifest.
 
@@ -217,7 +205,7 @@ Run:
 node --experimental-strip-types --test tests/pi/test-pi-extension.mjs
 ```
 
-Expected: FAIL at the shared-controller import assertion because the current Pi adapter still owns the bootstrap implementation.
+Expected: FAIL because the current Pi adapter silently ignores a missing bootstrap instead of reporting the required one-time warning.
 
 - [ ] **Step 3: Refactor the Pi adapter**
 
@@ -273,7 +261,7 @@ Run:
 node --experimental-strip-types --test tests/pi/test-pi-extension.mjs
 ```
 
-Expected: all Pi tests pass, including resource discovery, duplicate suppression, two-summary placement, shared-core boundary, and one-time missing-file diagnostic.
+Expected: all Pi tests pass, including resource discovery, duplicate suppression, two-summary placement, and one-time missing-file diagnostic.
 
 - [ ] **Step 5: Commit the Pi-preserving refactor**
 
@@ -311,12 +299,11 @@ assert.deepEqual(pkg.pi, {
 });
 ```
 
-2. Extension source imports `ContextEvent` and `ExtensionAPI` from `@oh-my-pi/pi-coding-agent`, imports only the shared controller, and does not import `.pi` or use `console.warn`.
-3. Factory registers exactly `session_start`, `session_compact`, `context`, and `agent_end`, each once; it never registers `resources_discover` or `session_before_compact`; no handler runs during factory execution.
-4. The OMP host has no `resources_discover` handler, while the package contains `skills/using-superpowers/SKILL.md` with its expected frontmatter.
-5. Startup starts disarmed, then injects one OMP-marked user message after `session_start`; assert OMP text contains `skill://<name>/SKILL.md`, lowercase built-ins, lowercase `task`, lowercase `todo`, and the prohibition on capitalized calls. Assert it contains neither the Pi mapping nor `pi-subagents`. Assert string and multipart markers suppress injection, and `agent_end` disarms it.
-6. `session_compact` plus two leading `compactionSummary` messages inserts the bootstrap after both summaries.
-7. Copy the OMP adapter and shared controller to a temporary package root with no `skills/`, run startup/context twice, and assert exactly one `omp.logger.warn("Superpowers bootstrap unavailable", diagnostic)` with a `bootstrap-read-failed` warning.
+2. Factory registers exactly `session_start`, `session_compact`, `context`, and `agent_end`, each once; it never registers `resources_discover` or `session_before_compact`; no handler runs during factory execution.
+3. The OMP host has no `resources_discover` handler, while the package contains `skills/using-superpowers/SKILL.md` with its expected frontmatter.
+4. Startup starts disarmed, then injects one OMP-marked user message after `session_start`; assert OMP text contains `skill://<name>/SKILL.md`, lowercase built-ins, lowercase `task`, lowercase `todo`, and the prohibition on capitalized calls. Assert it contains neither the Pi mapping nor `pi-subagents`. Assert string and multipart markers suppress injection, and `agent_end` disarms it.
+5. `session_compact` plus two leading `compactionSummary` messages inserts the bootstrap after both summaries.
+6. Copy the OMP adapter and shared controller to a temporary package root with no `skills/`, run startup/context twice, and assert exactly one `omp.logger.warn("Superpowers bootstrap unavailable", diagnostic)` with a `bootstrap-read-failed` warning.
 
 - [ ] **Step 2: Run the OMP extension test to verify RED**
 
