@@ -20,6 +20,7 @@ Superpowers is a complete software development methodology for your coding agent
   - [Kimi Code](#kimi-code)
   - [OpenCode](#opencode)
   - [Pi](#pi)
+  - [Oh My Pi (OMP)](#oh-my-pi-omp)
   - [Hermes Agent](#hermes-agent)
 - [The Basic Workflow](#the-basic-workflow)
 - [Community](#community)
@@ -245,6 +246,22 @@ pi -e /path/to/superpowers
 ```
 
 The Pi package loads the Superpowers skills and a small extension that injects the `using-superpowers` bootstrap at session startup and again after compaction. Pi has native skills, so no compatibility `Skill` tool is required. Subagent and task-list tools remain optional Pi companion packages.
+
+### Oh My Pi (OMP)
+
+Install Superpowers as an OMP plugin from Git:
+
+```bash
+omp plugin install github:obra/superpowers
+```
+
+For local development, link this checkout:
+
+```bash
+omp plugin link /absolute/path/to/superpowers
+```
+
+The OMP plugin loads the native manifest and uses lowercase `task` and `todo` tools for agent workflows and task tracking. See [.omp/INSTALL.md](.omp/INSTALL.md) for verification, diagnostics, and removal.
 
 ### Hermes Agent
 

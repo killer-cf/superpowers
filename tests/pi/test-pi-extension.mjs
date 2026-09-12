@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
 
@@ -15,7 +16,7 @@ async function readPackageJson() {
   return JSON.parse(await readFile(packageJsonPath, 'utf8'));
 }
 
-async function loadExtension() {
+async function loadExtension(extension = extensionPath) {
   const handlers = new Map();
   const pi = {
     on(event, handler) {
@@ -23,7 +24,7 @@ async function loadExtension() {
       handlers.get(event).push(handler);
     },
   };
-  const mod = await import(pathToFileURL(extensionPath).href + `?cachebust=${Date.now()}-${Math.random()}`);
+  const mod = await import(pathToFileURL(extension).href + `?cachebust=${Date.now()}-${Math.random()}`);
   mod.default(pi);
   return { handlers };
 }
@@ -92,6 +93,19 @@ test('startup context injects the bootstrap as one user message until agent_end'
   assert.equal(repeatedProviderRequest.messages.length, 2);
   assert.match(textOf(repeatedProviderRequest.messages[0]), /You have superpowers/);
 
+  const bootstrapMarker = 'superpowers:using-superpowers bootstrap for pi';
+  const stringMarker = await context({
+    type: 'context',
+    messages: [{ role: 'user', content: `Already loaded: ${bootstrapMarker}` }],
+  }, {});
+  assert.equal(stringMarker, undefined, 'string bootstrap marker should suppress injection');
+
+  const multipartMarker = await context({
+    type: 'context',
+    messages: [{ role: 'user', content: [{ type: 'text', text: `Already loaded: ${bootstrapMarker}` }] }],
+  }, {});
+  assert.equal(multipartMarker, undefined, 'multipart bootstrap marker should suppress injection');
+
   const alreadyInjected = await context({ type: 'context', messages: result.messages }, {});
   assert.equal(alreadyInjected, undefined, 'bootstrap should not duplicate when already present');
 
@@ -107,15 +121,54 @@ test('session_compact injects bootstrap after compaction summaries, not before c
 
   await sessionCompact({ type: 'session_compact', compactionEntry: {}, fromExtension: false }, {});
 
-  const summary = { role: 'compactionSummary', summary: 'Prior work summary', tokensBefore: 123, timestamp: 1 };
-  const user = { role: 'user', content: [{ type: 'text', text: 'Continue' }], timestamp: 2 };
-  const result = await context({ type: 'context', messages: [summary, user] }, {});
+  const firstSummary = { role: 'compactionSummary', summary: 'Prior work summary', tokensBefore: 123, timestamp: 1 };
+  const secondSummary = { role: 'compactionSummary', summary: 'Latest work summary', tokensBefore: 45, timestamp: 2 };
+  const user = { role: 'user', content: [{ type: 'text', text: 'Continue' }], timestamp: 3 };
+  const result = await context({ type: 'context', messages: [firstSummary, secondSummary, user] }, {});
 
-  assert.equal(result.messages.length, 3);
-  assert.equal(result.messages[0], summary);
-  assert.equal(result.messages[1].role, 'user');
-  assert.match(textOf(result.messages[1]), /You have superpowers/);
-  assert.equal(result.messages[2], user);
+  assert.equal(result.messages.length, 4);
+  assert.equal(result.messages[0], firstSummary);
+  assert.equal(result.messages[1], secondSummary);
+  assert.equal(result.messages[2].role, 'user');
+  assert.match(textOf(result.messages[2]), /You have superpowers/);
+  assert.equal(result.messages[3], user);
+});
+
+test('missing bootstrap reports one diagnostic warning across repeated context calls', async () => {
+  const tempRoot = await mkdtemp(resolve(tmpdir(), 'superpowers-pi-'));
+  const tempExtensionDir = resolve(tempRoot, '.pi/extensions');
+  const tempSharedDir = resolve(tempRoot, 'integrations/shared');
+  const tempExtensionPath = resolve(tempExtensionDir, 'superpowers.ts');
+  try {
+    await mkdir(tempExtensionDir, { recursive: true });
+    await mkdir(tempSharedDir, { recursive: true });
+    await copyFile(extensionPath, tempExtensionPath);
+    await copyFile(resolve(repoRoot, 'integrations/shared/bootstrap.ts'), resolve(tempSharedDir, 'bootstrap.ts'));
+
+    const warnings = [];
+    const originalWarn = console.warn;
+    console.warn = (...args) => warnings.push(args);
+    try {
+      const { handlers } = await loadExtension(tempExtensionPath);
+      const sessionStart = firstHandler(handlers, 'session_start');
+      const context = firstHandler(handlers, 'context');
+
+      await sessionStart({ type: 'session_start', reason: 'startup' }, {});
+      const messages = [{ role: 'user', content: [{ type: 'text', text: 'Continue' }], timestamp: 1 }];
+      const firstContext = await context({ type: 'context', messages }, {});
+      const secondContext = await context({ type: 'context', messages }, {});
+
+      assert.equal(firstContext, undefined);
+      assert.equal(secondContext, undefined);
+      assert.equal(warnings.length, 1, 'missing bootstrap should warn once');
+      assert.equal(warnings[0][0], 'Superpowers bootstrap unavailable');
+      assert.equal(warnings[0][1].code, 'bootstrap-read-failed');
+    } finally {
+      console.warn = originalWarn;
+    }
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test('pi tools reference documents pi-specific mappings', async () => {
