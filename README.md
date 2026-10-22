@@ -256,7 +256,7 @@ The Pi package loads the Superpowers skills and a small extension that injects t
 Install Superpowers as an OMP plugin from Git:
 
 ```bash
-omp plugin install github:obra/superpowers
+omp plugin install github:killer-cf/superpowers
 ```
 
 For local development, link this checkout:

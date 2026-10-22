@@ -19,7 +19,7 @@ test('README documents the native OMP installation path', async () => {
   assert.match(readme, /\[Oh My Pi \(OMP\)\]\(#oh-my-pi-omp\)/);
   assert.ok(piHeading >= 0, 'README should retain the Pi installation section');
   assert.ok(ompHeading > piHeading, 'OMP should follow the Pi installation section');
-  assert.match(readme, /omp plugin install github:obra\/superpowers/);
+  assert.match(readme, /omp plugin install github:killer-cf\/superpowers/);
   assert.match(readme, /omp plugin link \/absolute\/path\/to\/superpowers/);
   assert.match(readme, /\.omp\/INSTALL\.md/);
   assert.match(readme, /native manifest[\s\S]*lowercase `task` and `todo`/i);
@@ -39,7 +39,7 @@ test('OMP install guide documents install, diagnostics, and removal commands', a
   }
 
   for (const command of [
-    'omp plugin install github:obra/superpowers',
+    'omp plugin install github:killer-cf/superpowers',
     'omp plugin link /absolute/path/to/superpowers',
     'omp plugin list --json',
     'omp plugin list',

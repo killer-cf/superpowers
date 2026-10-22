@@ -4,14 +4,14 @@
 
 Install [Oh My Pi](https://github.com/can1357/oh-my-pi) and make sure the `omp` command is available. After installing or linking Superpowers, restart OMP or start a new session.
 
-This integration was verified with OMP `18.1.18`. This verification note sets no compatibility floor.
+This integration was verified with OMP `18.12.6`. This verification note sets no compatibility floor.
 
 ## Install from git
 
 Install Superpowers directly from GitHub:
 
 ```bash
-omp plugin install github:obra/superpowers
+omp plugin install github:killer-cf/superpowers
 ```
 
 ## Local development

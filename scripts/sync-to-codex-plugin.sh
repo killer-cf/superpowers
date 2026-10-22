@@ -56,6 +56,7 @@ EXCLUDES=(
   "/.gitignore"
   "/.gitmodules"
   "/.kimi-plugin/"
+  "/.omp/"
   "/.opencode/"
   "/.pi/"
   "/.pre-commit-config.yaml"
@@ -84,6 +85,7 @@ EXCLUDES=(
 
   # Other harnesses' assets
   "/assets/antigravity-logo.png"
+  "/integrations/"
 )
 
 # =============================================================================
